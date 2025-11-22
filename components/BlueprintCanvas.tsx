@@ -13,7 +13,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
 
   // Margins for axes and labels
   const margin = { top: 50, right: 50, bottom: 100, left: 70 };
-  const FLOOR_GAP = 80; 
+  const FLOOR_GAP_PX = 80; // Gap between floors in pixels
 
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -34,11 +34,13 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
     const pixelsPerFoot = (xScale(landW) - xScale(0)) / landW;
     const getY = (ft: number) => ft * pixelsPerFoot;
 
-    const svgContentHeight = margin.top + margin.bottom + (getY(landH) * numFloors) + (FLOOR_GAP * pixelsPerFoot * (numFloors - 1));
+    // Calculate total height required
+    // Height = margins + (height of all floors) + (gaps between floors)
+    const svgContentHeight = margin.top + margin.bottom + (getY(landH) * numFloors) + (FLOOR_GAP_PX * (numFloors - 1));
 
     svg.attr("height", Math.max(700, svgContentHeight));
 
-    // Grid
+    // Grid Definition
     const defs = svg.append("defs");
     const pattern = defs.append("pattern")
       .attr("id", "grid")
@@ -53,7 +55,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
 
     // Render each floor
     floors.forEach((floor, index) => {
-      const floorOffsetY = margin.top + index * (getY(landH) + FLOOR_GAP);
+      const floorOffsetY = margin.top + index * (getY(landH) + FLOOR_GAP_PX);
       const floorG = svg.append("g")
         .attr("transform", `translate(0, ${floorOffsetY})`);
 
@@ -66,7 +68,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
         .attr("fill", "#1e293b")
         .text(floor.name);
 
-      // Land
+      // Land Boundary
       const landWidthPx = xScale(landW) - xScale(0);
       const landHeightPx = getY(landH);
 
@@ -80,7 +82,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
         .attr("stroke-width", 2)
         .attr("stroke-dasharray", "5,5");
 
-      // Rooms
+      // Rooms Group
       const roomGroup = floorG.append("g").attr("class", "rooms");
 
       // 1. Draw all Fills
@@ -100,17 +102,6 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
       });
 
       // 2. Draw Outlines (Borders)
-      // We draw borders for all rooms. 
-      // If two rooms have the same name, we draw the shared edge with the fill color to "erase" the border.
-      
-      // Helper to check overlap
-      const isSharedEdge = (r1: Room, r2: Room, edge: 'top'|'bottom'|'left'|'right') => {
-        if (r1.name !== r2.name) return false;
-        // Simple overlap check logic could go here, but for this specific request:
-        // We'll just draw strokes on all, then overdraw shared segments.
-        return false;
-      };
-
       floor.rooms.forEach((room) => {
         const x = xScale(room.x);
         const y = getY(room.y);
@@ -127,7 +118,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
           .attr("stroke-width", 2);
       });
 
-      // 3. "Merge" visual pass: Draw over shared borders of same-name rooms with fill color
+      // 3. "Merge" visual pass: Draw over shared borders of same-name rooms
       const drawnPairs = new Set<string>();
       floor.rooms.forEach((r1) => {
         floor.rooms.forEach((r2) => {
@@ -138,7 +129,6 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
           drawnPairs.add(pairId);
 
           // Check adjacency
-          // r1 Right touching r2 Left
           const r1Right = r1.x + r1.width;
           const r1Left = r1.x;
           const r1Top = r1.y;
@@ -159,11 +149,11 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
           if (Math.abs(r1Right - r2Left) < 0.1 && overlapYEnd > overlapYStart) {
              roomGroup.append("line")
                .attr("x1", xScale(r1Right))
-               .attr("y1", getY(overlapYStart) + 1) // +1/-1 to avoid corner issues
+               .attr("y1", getY(overlapYStart) + 1) 
                .attr("x2", xScale(r1Right))
                .attr("y2", getY(overlapYEnd) - 1)
                .attr("stroke", r1.color || '#cbd5e1')
-               .attr("stroke-width", 3); // Slightly thicker to cover black line
+               .attr("stroke-width", 3);
           }
           // Shared Horizontal Edge
           if (Math.abs(r1Bottom - r2Top) < 0.1 && overlapXEnd > overlapXStart) {
@@ -179,9 +169,6 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
       });
 
       // 4. Labels
-      // Group by name to label center of mass? 
-      // For now, label the largest rect of the group or all large rects.
-      // To avoid duplicate labels for split rooms, we can just label the largest part.
       const roomPartsByName: {[key: string]: Room[]} = {};
       floor.rooms.forEach(r => {
         if (!roomPartsByName[r.name]) roomPartsByName[r.name] = [];
@@ -203,6 +190,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
         const w = xScale(mainPart.x + mainPart.width) - xScale(mainPart.x);
         const h = getY(mainPart.height);
 
+        // Only show labels if room is big enough
         if (w > 20 && h > 15) {
             const textGroup = roomGroup.append("text")
               .attr("x", x + w / 2)
@@ -227,7 +215,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
               .text(`${Math.round(totalArea)} sqft`);
         }
         
-        // Dimensions on sides - only for main part for simplicity to avoid clutter
+        // Dimensions on sides
         const fontSize = "9px";
         const textColor = "#64748b";
         if (w > 20) {
@@ -281,9 +269,10 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({ layout }) => {
         });
     });
 
-    // Add Text to Bottom Left of First Floor Chart
-    // We place it below the First Floor chart area
-    const legendY = margin.top + getY(landH) + 30;
+    // Position the legend below the last floor
+    const totalFloorsHeight = numFloors * getY(landH) + (numFloors - 1) * FLOOR_GAP_PX;
+    const legendY = margin.top + totalFloorsHeight + 30;
+
     const legendG = svg.append("g")
         .attr("transform", `translate(${margin.left}, ${legendY})`);
 

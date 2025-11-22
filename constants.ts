@@ -1,13 +1,13 @@
 
 import { HouseLayout } from './types';
 
-// Land: 75x60 (Length/X x Width/Y)
+// Land: 75x50 (Length/X x Width/Y) - Height reduced to 50ft as requested
 // Coordinates: x=North-South (Left-Right on screen), y=East-West (Top-Bottom on screen)
 
 export const INITIAL_LAYOUT: HouseLayout = {
   land: {
     width: 75,
-    height: 60,
+    height: 50,
   },
   floors: [
     {
@@ -65,7 +65,7 @@ export const INITIAL_LAYOUT: HouseLayout = {
           description: '10x16ft'
         },
         {
-          id: 'bedroom_1', // Merged into Living Room
+          id: 'living_room_c', // Merged into Living Room (previously Bed 1)
           name: 'Living Room',
           x: 55, // Shifted to 55
           y: 5,
