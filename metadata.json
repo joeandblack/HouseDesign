@@ -1,0 +1,5 @@
+{
+  "name": "AI Architect - Blueprint Designer",
+  "description": "An interactive floor plan designer that visualizes house layouts from text descriptions using Gemini 2.5 Flash.",
+  "requestFramePermissions": []
+}
